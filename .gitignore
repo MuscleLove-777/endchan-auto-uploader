@@ -1,0 +1,19 @@
+# Environment
+.env
+__pycache__/
+*.pyc
+
+# Images downloaded from Google Drive
+images/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Virtual environment
+venv/
+.venv/
