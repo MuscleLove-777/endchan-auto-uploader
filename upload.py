@@ -9,9 +9,11 @@ import os
 import sys
 import json
 import time
+import re
 import random
 import glob
 import tempfile
+import shutil
 import requests
 from pathlib import Path
 from datetime import datetime
@@ -20,13 +22,10 @@ from datetime import datetime
 # Configuration
 # ---------------------------------------------------------------------------
 GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID_ENDCHAN", "")
-ENDCHAN_BOARD = os.environ.get("ENDCHAN_BOARD", "b")
+ENDCHAN_BOARD = os.environ.get("ENDCHAN_BOARD", "musclelove")
 
-ENDCHAN_BASES = [
-    "https://endchan.org",
-    "https://endchan.net",
-    "https://endchan.gg",
-]
+ENDCHAN_POST_URL = "https://endchan.net/newThread.js"
+POST_PASSWORD = os.environ.get("ENDCHAN_PASSWORD", "musclelove123")
 
 UPLOAD_LOG = Path(__file__).parent / "uploaded_endchan.json"
 IMAGE_DIR = Path(__file__).parent / "images"
@@ -123,61 +122,37 @@ More exclusive content: {PATREON_LINK}"""
     return subject, message
 
 
-def find_working_base() -> str | None:
-    """Find a working Endchan base URL."""
-    for base in ENDCHAN_BASES:
-        try:
-            resp = requests.get(f"{base}/status", timeout=15)
-            if resp.status_code < 500:
-                print(f"[+] Using base URL: {base}")
-                return base
-        except requests.RequestException:
-            print(f"[-] {base} unreachable, trying next...")
-            continue
-
-    # Fallback: try catalog endpoint
-    for base in ENDCHAN_BASES:
-        try:
-            resp = requests.get(f"{base}/{ENDCHAN_BOARD}/catalog.json", timeout=15)
-            if resp.status_code == 200:
-                print(f"[+] Using base URL (via catalog): {base}")
-                return base
-        except requests.RequestException:
-            continue
-
-    return None
-
-
-def check_captcha(base_url: str, board: str) -> tuple[str, str] | None:
+def clean_filename(filepath: Path) -> Path:
     """
-    Check if CAPTCHA is required and attempt to fetch it.
-    Returns (captchaId, captcha_image_url) or None if not required.
+    Return a copy of the file with a clean filename (no spaces or special chars).
+    If the filename is already clean, return the original path.
     """
-    try:
-        resp = requests.get(
-            f"{base_url}/captcha.js",
-            params={"boardUri": board},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            captcha_id = data.get("captchaId") or data.get("id")
-            if captcha_id:
-                print(f"[!] CAPTCHA required. ID: {captcha_id}")
-                return captcha_id, data
-        return None
-    except Exception as e:
-        print(f"[*] CAPTCHA check error (may not be required): {e}")
-        return None
+    clean_name = re.sub(r"[^\w\-.]", "_", filepath.name)
+    clean_name = re.sub(r"_+", "_", clean_name)  # collapse multiple underscores
+    if clean_name == filepath.name:
+        return filepath
+    # Copy to temp location with clean name
+    tmp_dir = Path(tempfile.mkdtemp())
+    clean_path = tmp_dir / clean_name
+    shutil.copy2(filepath, clean_path)
+    print(f"[*] Cleaned filename: {filepath.name} -> {clean_name}")
+    return clean_path
 
 
-def post_new_thread(base_url: str, board: str, subject: str, message: str,
+def post_new_thread(board: str, subject: str, message: str,
                     image_path: Path) -> dict:
-    """Create a new thread on Endchan via Lynxchan API."""
-    url = f"{base_url}/newThread.js"
+    """
+    Create a new thread on Endchan /musclelove/ via Lynxchan API.
+    Own board - no CAPTCHA required.
+    POST multipart/form-data to https://endchan.net/newThread.js
+    """
+    url = ENDCHAN_POST_URL
+
+    # Clean the filename (no spaces or special chars)
+    clean_image = clean_filename(image_path)
 
     # Determine MIME type
-    suffix = image_path.suffix.lower()
+    suffix = clean_image.suffix.lower()
     mime_map = {
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
@@ -187,32 +162,28 @@ def post_new_thread(base_url: str, board: str, subject: str, message: str,
     }
     mime = mime_map.get(suffix, "application/octet-stream")
 
-    with open(image_path, "rb") as img_file:
+    with open(clean_image, "rb") as img_file:
         files = {
-            "files": (image_path.name, img_file, mime),
+            "files": (clean_image.name, img_file, mime),
         }
         data = {
             "boardUri": board,
             "subject": subject,
             "message": message,
-            "noFlag": "true",
+            "password": POST_PASSWORD,
         }
 
-        # Check CAPTCHA
-        captcha_info = check_captcha(base_url, board)
-        if captcha_info:
-            captcha_id, captcha_data = captcha_info
-            print("[!] CAPTCHA is required for this board.")
-            print("[!] Automatic CAPTCHA solving not yet implemented.")
-            print("[!] Attempting post without CAPTCHA answer (may fail)...")
-            data["captchaId"] = captcha_id
-            data["captcha"] = ""
-
-        print(f"[*] Posting new thread to /{board}/ ...")
+        print(f"[*] Posting new thread to /{board}/ (no CAPTCHA) ...")
+        print(f"    URL: {url}")
         print(f"    Subject: {subject}")
-        print(f"    Image: {image_path.name}")
+        print(f"    Image: {clean_image.name}")
 
         resp = requests.post(url, data=data, files=files, timeout=60)
+
+    # Clean up temp file if we created one
+    if clean_image != image_path:
+        clean_image.unlink(missing_ok=True)
+        clean_image.parent.rmdir()
 
     return {
         "status_code": resp.status_code,
@@ -221,12 +192,14 @@ def post_new_thread(base_url: str, board: str, subject: str, message: str,
     }
 
 
-def post_reply(base_url: str, board: str, thread_id: str, message: str,
+def post_reply(board: str, thread_id: str, message: str,
                image_path: Path) -> dict:
     """Reply to an existing thread on Endchan."""
-    url = f"{base_url}/replyThread.js"
+    url = "https://endchan.net/replyThread.js"
 
-    suffix = image_path.suffix.lower()
+    clean_image = clean_filename(image_path)
+
+    suffix = clean_image.suffix.lower()
     mime_map = {
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
@@ -236,18 +209,23 @@ def post_reply(base_url: str, board: str, thread_id: str, message: str,
     }
     mime = mime_map.get(suffix, "application/octet-stream")
 
-    with open(image_path, "rb") as img_file:
+    with open(clean_image, "rb") as img_file:
         files = {
-            "files": (image_path.name, img_file, mime),
+            "files": (clean_image.name, img_file, mime),
         }
         data = {
             "boardUri": board,
             "threadId": thread_id,
             "message": message,
+            "password": POST_PASSWORD,
         }
 
         print(f"[*] Replying to thread #{thread_id} on /{board}/ ...")
         resp = requests.post(url, data=data, files=files, timeout=60)
+
+    if clean_image != image_path:
+        clean_image.unlink(missing_ok=True)
+        clean_image.parent.rmdir()
 
     return {
         "status_code": resp.status_code,
@@ -263,16 +241,11 @@ def post_reply(base_url: str, board: str, thread_id: str, message: str,
 def main():
     print("=" * 60)
     print("  Endchan Auto-Uploader - MuscleLove")
+    print(f"  Board: /{ENDCHAN_BOARD}/  (no CAPTCHA)")
     print(f"  {datetime.now().isoformat()}")
     print("=" * 60)
 
-    # 1. Find working Endchan mirror
-    base_url = find_working_base()
-    if not base_url:
-        print("[ERROR] No reachable Endchan mirror found. Aborting.")
-        sys.exit(1)
-
-    # 2. Get images from Google Drive
+    # 1. Get images from Google Drive
     if GDRIVE_FOLDER_ID:
         images = download_images_from_gdrive(GDRIVE_FOLDER_ID, IMAGE_DIR)
     else:
@@ -302,8 +275,8 @@ def main():
     # 4. Build post content
     subject, message = build_message()
 
-    # 5. Post to Endchan
-    result = post_new_thread(base_url, ENDCHAN_BOARD, subject, message, image)
+    # 5. Post to Endchan (no CAPTCHA on own board)
+    result = post_new_thread(ENDCHAN_BOARD, subject, message, image)
 
     print(f"\n[*] Response status: {result['status_code']}")
     print(f"[*] Response body: {result['response'][:500]}")
@@ -313,16 +286,17 @@ def main():
         "filename": image.name,
         "board": ENDCHAN_BOARD,
         "subject": subject,
-        "base_url": base_url,
+        "post_url": ENDCHAN_POST_URL,
         "status_code": result["status_code"],
         "response": result["response"][:300],
         "posted_at": datetime.now().isoformat(),
     }
 
-    # Consider success if status is 200 or response contains thread ID
-    if result["status_code"] == 200 or "id" in result["response"].lower():
+    # Check for "Thread created" in response to confirm success
+    resp_text = result["response"].lower()
+    if "thread created" in resp_text or result["status_code"] == 200:
         log_entry["success"] = True
-        print("[+] Post appears successful!")
+        print("[+] Thread created successfully!")
     else:
         log_entry["success"] = False
         print(f"[-] Post may have failed. Status: {result['status_code']}")
