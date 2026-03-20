@@ -86,7 +86,11 @@ def download_images_from_gdrive(folder_id: str, dest: Path) -> list:
     url = f"https://drive.google.com/drive/folders/{folder_id}"
     print(f"[*] Downloading images from Google Drive: {url}")
 
-    gdown.download_folder(url=url, output=str(dest), quiet=False, use_cookies=False)
+    try:
+        gdown.download_folder(url=url, output=str(dest), quiet=False, use_cookies=False, remaining_ok=True)
+    except Exception as e:
+        print(f"[!] Download error: {e}")
+        # 一部ファイルが失敗しても、ダウンロード済みファイルを使う
 
     extensions = ("*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp")
     files = []
