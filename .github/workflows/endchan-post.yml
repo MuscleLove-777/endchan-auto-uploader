@@ -24,11 +24,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Validate required secrets
+        env:
+          GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
+        run: |
+          [ -n "$GDRIVE_FOLDER_ID_ENDCHAN" ] || (echo "GDRIVE_FOLDER_ID_ENDCHAN is empty" && exit 1)
+          echo "Secrets validated (GOOGLE_API_KEY recommended for reliable Drive access)"
+
       - name: Run uploader (attempt 1)
         id: attempt1
         continue-on-error: true
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           ENDCHAN_BOARD: b
         run: python upload.py
 
@@ -42,6 +50,7 @@ jobs:
         continue-on-error: true
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           ENDCHAN_BOARD: b
         run: python upload.py
 
@@ -54,6 +63,7 @@ jobs:
         if: steps.attempt1.outcome == 'failure' && steps.attempt2.outcome == 'failure'
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           ENDCHAN_BOARD: b
         run: python upload.py
 

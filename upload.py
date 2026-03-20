@@ -22,7 +22,9 @@ from datetime import datetime
 # Configuration
 # ---------------------------------------------------------------------------
 GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID_ENDCHAN", "")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 ENDCHAN_BOARD = os.environ.get("ENDCHAN_BOARD", "musclelove")
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 ENDCHAN_POST_URL = "https://endchan.net/newThread.js"
 POST_PASSWORD = os.environ.get("ENDCHAN_PASSWORD", "musclelove123")
@@ -91,39 +93,92 @@ def save_upload_log(log: list):
         json.dump(log, f, indent=2, ensure_ascii=False)
 
 
-def download_images_from_gdrive(folder_id: str, dest: Path) -> list:
-    """Download images from a Google Drive folder using gdown."""
+def _list_via_api(folder_id: str) -> list:
+    """Google Drive API v3で画像一覧を取得（サブフォルダ再帰）"""
+    url = "https://www.googleapis.com/drive/v3/files"
+    images = []
+
+    def _list_page(parent_id: str):
+        query = f"'{parent_id}' in parents and trashed = false"
+        params = {
+            "q": query,
+            "key": GOOGLE_API_KEY,
+            "fields": "files(id,name,mimeType)",
+            "pageSize": 1000,
+        }
+        resp = requests.get(url, params=params, timeout=60)
+        resp.raise_for_status()
+        for f in resp.json().get("files", []):
+            mime = (f.get("mimeType") or "").lower()
+            ext = Path(f["name"]).suffix.lower()
+            if "folder" in mime:
+                _list_page(f["id"])
+            elif ext in IMAGE_EXTENSIONS:
+                images.append({"id": f["id"], "name": f["name"]})
+
+    _list_page(folder_id)
+    return images
+
+
+def _list_via_gdown(folder_id: str, dest: Path) -> list:
+    """gdownでフォルダをダウンロード（APIキー不要）"""
     import gdown
-
     dest.mkdir(parents=True, exist_ok=True)
-
     url = f"https://drive.google.com/drive/folders/{folder_id}"
-    print(f"[*] Downloading images from Google Drive: {url}")
-
+    print(f"[*] Downloading from Google Drive (gdown): {url}")
     try:
         gdown.download_folder(url=url, output=str(dest), quiet=False, use_cookies=False, remaining_ok=True)
     except Exception as e:
         print(f"[!] Download error: {e}")
-        # 一部ファイルが失敗しても、ダウンロード済みファイルを使う
 
-    extensions = ("*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp")
     files = []
-    for ext in extensions:
-        files.extend(dest.glob(ext))
-        files.extend(dest.glob(ext.upper()))
-    return sorted(files)
+    for ext in IMAGE_EXTENSIONS:
+        files.extend(dest.glob(f"*{ext}"))
+        files.extend(dest.glob(f"*{ext.upper()}"))
+    return [{"id": None, "name": p.name, "local_path": p} for p in sorted(set(files))]
 
 
-def pick_random_image(images: list, uploaded: list) -> Path | None:
+def _download_single_api(file_id: str, dest: Path, filename: str) -> Path:
+    """Google Drive APIで1ファイルをダウンロード"""
+    url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
+    resp = requests.get(url, params={"alt": "media", "key": GOOGLE_API_KEY}, timeout=120)
+    resp.raise_for_status()
+    dest.mkdir(parents=True, exist_ok=True)
+    out = dest / filename
+    out.write_bytes(resp.content)
+    return out
+
+
+def list_gdrive_images(folder_id: str, dest: Path) -> list:
+    """Google Drive API（優先）またはgdownで画像一覧を取得"""
+    if GOOGLE_API_KEY:
+        print("[*] Using Google Drive API")
+        return _list_via_api(folder_id)
+    return _list_via_gdown(folder_id, dest)
+
+
+def pick_random_image(images: list, uploaded: list) -> dict | None:
     """Pick a random image that hasn't been uploaded yet."""
     uploaded_names = {entry.get("filename") for entry in uploaded}
-    available = [img for img in images if img.name not in uploaded_names]
+    name_getter = lambda x: x["name"] if isinstance(x, dict) else x.name
+    available = [img for img in images if name_getter(img) not in uploaded_names]
 
     if not available:
         print("[!] All images have been uploaded. Resetting log for rotation.")
         return random.choice(images) if images else None
 
     return random.choice(available)
+
+
+def ensure_local_path(item: dict, dest: Path) -> Path:
+    """Return local file path, downloading via API if needed."""
+    if item.get("local_path"):
+        p = Path(item["local_path"])
+        if p.exists():
+            return p
+    if item.get("id") and GOOGLE_API_KEY:
+        return _download_single_api(item["id"], dest, item["name"])
+    raise ValueError("No way to get file: missing local_path and (id+API key)")
 
 
 def build_message() -> tuple[str, str]:
@@ -265,15 +320,14 @@ def main():
 
     # 1. Get images from Google Drive
     if GDRIVE_FOLDER_ID:
-        images = download_images_from_gdrive(GDRIVE_FOLDER_ID, IMAGE_DIR)
+        images = list_gdrive_images(GDRIVE_FOLDER_ID, IMAGE_DIR)
     else:
         print("[!] No GDRIVE_FOLDER_ID_ENDCHAN set. Looking for local images...")
-        extensions = ("*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp")
-        images = []
-        for ext in extensions:
-            images.extend(IMAGE_DIR.glob(ext))
-            images.extend(IMAGE_DIR.glob(ext.upper()))
-        images = sorted(images)
+        files = []
+        for ext in IMAGE_EXTENSIONS:
+            files.extend(IMAGE_DIR.glob(f"*{ext}"))
+            files.extend(IMAGE_DIR.glob(f"*{ext.upper()}"))
+        images = [{"id": None, "name": p.name, "local_path": p} for p in sorted(set(files))]
 
     if not images:
         print("[ERROR] No images found. Aborting.")
@@ -281,27 +335,28 @@ def main():
 
     print(f"[+] Found {len(images)} images")
 
-    # 3. Pick an image
+    # 2. Pick an image
     uploaded_log = load_upload_log()
-    image = pick_random_image(images, uploaded_log)
-    if not image:
+    image_item = pick_random_image(images, uploaded_log)
+    if not image_item:
         print("[ERROR] No image selected. Aborting.")
         sys.exit(1)
 
+    image = ensure_local_path(image_item, IMAGE_DIR)
     print(f"[+] Selected image: {image.name}")
 
-    # 4. Build post content
+    # 3. Build post content
     subject, message = build_message()
 
-    # 5. Post to Endchan (no CAPTCHA on own board)
+    # 4. Post to Endchan (no CAPTCHA on own board)
     result = post_new_thread(ENDCHAN_BOARD, subject, message, image)
 
     print(f"\n[*] Response status: {result['status_code']}")
     print(f"[*] Response body: {result['response'][:500]}")
 
-    # 6. Log result
+    # 5. Log result
     log_entry = {
-        "filename": image.name,
+        "filename": image_item["name"],
         "board": ENDCHAN_BOARD,
         "subject": subject,
         "post_url": ENDCHAN_POST_URL,
