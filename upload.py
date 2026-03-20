@@ -44,6 +44,13 @@ SUBJECTS = [
     "Powerful Women AI Illustration - MuscleLove",
     "Muscle Beauty AI Art - MuscleLove",
     "Athletic Women AI Creation - MuscleLove",
+    "Thick & Muscular Goddess - MuscleLove 💪",
+    "Dark Skin Muscle Beauty - MuscleLove 🔥",
+    "Voluptuous Fit Girl AI Art - MuscleLove",
+    "Toned & Powerful Women - MuscleLove ✨",
+    "Muscle Worship AI Collection - MuscleLove",
+    "Thicc Fit Goddess AI Art - MuscleLove",
+    "Armpit & Muscle Definition - MuscleLove",
 ]
 
 DESCRIPTIONS = [
@@ -55,9 +62,16 @@ DESCRIPTIONS = [
     "Powerful physiques, stunning aesthetics. AI art celebrating muscular female beauty.",
     "Digital art masterpiece featuring a strong, muscular woman. AI-generated fitness art.",
     "The art of female muscle - AI created illustration of powerful athletic women.",
+    "Thick, muscular, and absolutely gorgeous. Dark skin muscle beauty at its finest.",
+    "Voluptuous and powerful - the ultimate combo of strength and curves.",
+    "Trained bodies are the fetish. Thick muscular women with incredible definition.",
+    "Muscle worship material - toned arms, defined abs, powerful physique.",
+    "Fit, thick, and built different. AI-generated muscle goddess art.",
+    "Dark skin glow meets muscle definition. Breathtaking AI fitness art.",
+    "Armpit and muscle definition showcase. Celebrating every angle of the fit female form.",
 ]
 
-HASHTAGS = "#musclegirl #fitness #AIart #femalemuscle #musclewomen #bodybuilding #strongwomen"
+HASHTAGS = "#musclegirl #fitness #AIart #femalemuscle #musclewomen #bodybuilding #strongwomen #musclebeauty #thicc #thickfit #armpitfetish #tonedbody #fitchick #muscleworship"
 
 # ---------------------------------------------------------------------------
 # Helpers
