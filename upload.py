@@ -369,20 +369,21 @@ def main():
         "posted_at": datetime.now().isoformat(),
     }
 
-    # Check for "Thread created" in response to confirm success
+    # Check for success
     resp_text = result["response"].lower()
-    if "thread created" in resp_text or result["status_code"] == 200:
+    if result["status_code"] == 200:
         log_entry["success"] = True
         print("[+] Thread created successfully!")
+        uploaded_log.append(log_entry)
+        save_upload_log(uploaded_log)
+        print(f"[+] Log saved to {UPLOAD_LOG}")
+        print("\n[DONE]")
     else:
         log_entry["success"] = False
-        print(f"[-] Post may have failed. Status: {result['status_code']}")
-
-    uploaded_log.append(log_entry)
-    save_upload_log(uploaded_log)
-    print(f"[+] Log saved to {UPLOAD_LOG}")
-
-    print("\n[DONE]")
+        print(f"[-] Post failed. Status: {result['status_code']}")
+        uploaded_log.append(log_entry)
+        save_upload_log(uploaded_log)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

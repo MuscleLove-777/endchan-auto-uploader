@@ -37,7 +37,7 @@ jobs:
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          ENDCHAN_BOARD: b
+          ENDCHAN_BOARD: musclelove
         run: python upload.py
 
       - name: Wait before retry 2
@@ -51,7 +51,7 @@ jobs:
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          ENDCHAN_BOARD: b
+          ENDCHAN_BOARD: musclelove
         run: python upload.py
 
       - name: Wait before retry 3
@@ -64,7 +64,7 @@ jobs:
         env:
           GDRIVE_FOLDER_ID_ENDCHAN: ${{ secrets.GDRIVE_FOLDER_ID_ENDCHAN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          ENDCHAN_BOARD: b
+          ENDCHAN_BOARD: musclelove
         run: python upload.py
 
       - name: Commit upload log
