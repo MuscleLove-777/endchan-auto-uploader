@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "filename": "undefined_image (12).png",
+    "board": "b",
+    "subject": "Muscle Beauty AI Art - MuscleLove",
+    "post_url": "https://endchan.net/newThread.js",
+    "status_code": 500,
+    "response": "<!DOCTYPE html><html><head>\n  <meta charset=\"UTF-8\">\n  <link href=\"/.static/global.css\" type=\"text/css\" rel=\"stylesheet\">\n  <script src=\"/.static/switcher.js\"></script>\n<title>Error</title></head>\n<body>\n  <header>\n    <img src=\"/.static/logo.png\" alt=\"logo\">\n    <h2 id=\"codeLabel\">500</h2>\n    <h3 ",
+    "posted_at": "2026-03-21T00:30:38.758542",
+    "success": false
+  }
+]
