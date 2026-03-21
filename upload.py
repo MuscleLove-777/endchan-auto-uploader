@@ -153,7 +153,11 @@ def list_gdrive_images(folder_id: str, dest: Path) -> list:
     """Google Drive API（優先）またはgdownで画像一覧を取得"""
     if GOOGLE_API_KEY:
         print("[*] Using Google Drive API")
-        return _list_via_api(folder_id)
+        try:
+            return _list_via_api(folder_id)
+        except Exception as e:
+            print(f"[!] Google Drive API failed: {e}")
+            print("[*] Falling back to gdown...")
     return _list_via_gdown(folder_id, dest)
 
 
