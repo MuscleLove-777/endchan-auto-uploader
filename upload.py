@@ -133,8 +133,8 @@ def _list_via_gdown(folder_id: str, dest: Path) -> list:
 
     files = []
     for ext in IMAGE_EXTENSIONS:
-        files.extend(dest.glob(f"*{ext}"))
-        files.extend(dest.glob(f"*{ext.upper()}"))
+        files.extend(dest.rglob(f"*{ext}"))
+        files.extend(dest.rglob(f"*{ext.upper()}"))
     return [{"id": None, "name": p.name, "local_path": p} for p in sorted(set(files))]
 
 
