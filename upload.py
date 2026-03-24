@@ -53,6 +53,9 @@ SUBJECTS = [
     "Muscle Worship AI Collection - MuscleLove",
     "Thicc Fit Goddess AI Art - MuscleLove",
     "Armpit & Muscle Definition - MuscleLove",
+    "Iron Goddess Digital Art - MuscleLove 💪",
+    "Sculpted Physique AI Showcase - MuscleLove",
+    "Peak Female Form AI Art - MuscleLove 🔥",
 ]
 
 DESCRIPTIONS = [
@@ -71,6 +74,9 @@ DESCRIPTIONS = [
     "Fit, thick, and built different. AI-generated muscle goddess art.",
     "Dark skin glow meets muscle definition. Breathtaking AI fitness art.",
     "Armpit and muscle definition showcase. Celebrating every angle of the fit female form.",
+    "Every muscle fiber tells a story of dedication. AI-rendered athletic beauty at its peak.",
+    "Sweat, iron, and curves - the holy trinity captured in AI art. Pure muscle aesthetics.",
+    "She didn't build this physique overnight. AI art honoring the grind and the gains.",
 ]
 
 HASHTAGS = "#musclegirl #fitness #AIart #femalemuscle #musclewomen #bodybuilding #strongwomen #musclebeauty #thicc #thickfit #armpitfetish #tonedbody #fitchick #muscleworship"
