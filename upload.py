@@ -32,7 +32,34 @@ POST_PASSWORD = os.environ.get("ENDCHAN_PASSWORD", "musclelove123")
 UPLOAD_LOG = Path(__file__).parent / "uploaded_endchan.json"
 IMAGE_DIR = Path(__file__).parent / "images"
 
-PATREON_LINK = "https://www.patreon.com/cw/MuscleLove"
+PATREON_LINK = "https://www.patreon.com/cw/MuscleLove?utm_source=endchan"
+
+# --- MuscleLove バックリンクプール（Endchan: 自由系・アダルト+フィットネス両OK） ---
+ML_BACKLINK_POOL = [
+    ("https://musclelove-777.github.io/female-physique-queens/", "Female Physique Queens"),
+    ("https://musclelove-777.github.io/muscle-meal-girls/", "Muscle Meal Girls"),
+    ("https://musclelove-777.github.io/armwrestling-girls-navi/", "Armwrestling Navi"),
+    ("https://musclelove-777.github.io/physique-girls-navi/", "Physique Girls Navi"),
+    ("https://musclelove-777.github.io/fighting-girls-navi/", "Fighting Girls Navi"),
+    ("https://musclelove-777.github.io/network/fitness/", "MuscleLove Fitness Network"),
+    ("https://musclelove-777.github.io/network/academy/", "MuscleLove Academy 77"),
+]
+
+
+def build_backlink_block():
+    """MuscleLove バックリンクのプレーンテキストブロック（Endchan掲示板用、ランダム2件）"""
+    try:
+        k = min(2, len(ML_BACKLINK_POOL))
+        selected = random.sample(ML_BACKLINK_POOL, k=k)
+        lines = [f"  - {n}: {u}" for u, n in selected]
+        return (
+            "\n\n"
+            "[ML_BACKLINK]\n"
+            ">> Related sites:\n" + "\n".join(lines) + "\n"
+            "[/ML_BACKLINK]"
+        )
+    except Exception:
+        return ""
 
 RATE_LIMIT_SECONDS = 65  # wait between posts
 
@@ -201,6 +228,8 @@ def build_message() -> tuple[str, str]:
 {HASHTAGS}
 
 More exclusive content: {PATREON_LINK}"""
+
+    message = message + build_backlink_block()
 
     return subject, message
 
