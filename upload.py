@@ -83,6 +83,13 @@ SUBJECTS = [
     "Iron Goddess Digital Art - MuscleLove 💪",
     "Sculpted Physique AI Showcase - MuscleLove",
     "Peak Female Form AI Art - MuscleLove 🔥",
+    # --- Pool expansion 2026-04-25 (was 18 → 24 subjects) ---
+    "Sunrise Lift Goddess AI - MuscleLove 🌅",
+    "Late-Night Pump AI Art - MuscleLove 🌙",
+    "Vascular Female AI Showcase - MuscleLove",
+    "Apex Aesthetics AI Drop - MuscleLove ✨",
+    "Bulk Mode Beauty AI Set - MuscleLove",
+    "Cut & Carved Female AI - MuscleLove 🔥",
 ]
 
 DESCRIPTIONS = [
@@ -104,6 +111,13 @@ DESCRIPTIONS = [
     "Every muscle fiber tells a story of dedication. AI-rendered athletic beauty at its peak.",
     "Sweat, iron, and curves - the holy trinity captured in AI art. Pure muscle aesthetics.",
     "She didn't build this physique overnight. AI art honoring the grind and the gains.",
+    # --- Pool expansion 2026-04-25 (was 18 → 24 descriptions, combos 324 → 576) ---
+    "Sunrise pump captured in pixels. Morning grind goddess - AI muscle art at its purest.",
+    "Late-night iron session immortalized. Moonlight on muscle, AI-rendered to perfection.",
+    "Veins like roads, muscles like mountains. Vascular female physique AI showcase.",
+    "Apex tier aesthetics. When biology, training and AI converge into pure visual force.",
+    "Off-season abundance, on-season carving. Both modes celebrated in this AI muscle art.",
+    "Cut, dry, and carved like marble. AI-generated competition-ready female physique.",
 ]
 
 HASHTAGS = "#musclegirl #fitness #AIart #femalemuscle #musclewomen #bodybuilding #strongwomen #musclebeauty #thicc #thickfit #armpitfetish #tonedbody #fitchick #muscleworship"
