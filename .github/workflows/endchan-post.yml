@@ -2,8 +2,10 @@ name: Endchan Auto-Post
 
 on:
   schedule:
-    # 毎日 JST 12:00 (UTC 3:00)
-    - cron: '0 3 * * *'
+    # Wave6-C 頻度UP (規約配慮で間隔分散、ameblo UTC 3/9/13 とは衝突なし)
+    - cron: '0 8 * * *'  # JST 17:00
+    - cron: '0 14 * * *'  # JST 23:00
+    - cron: '0 20 * * *'  # JST 05:00
   workflow_dispatch:
 
 permissions:
