@@ -67,7 +67,7 @@ jobs:
         run: python upload.py
 
       - name: Commit upload log
-        if: steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success' || steps.attempt3.outcome == 'success'
+        if: (steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success' || steps.attempt3.outcome == 'success') && hashFiles('.endchan_skip') == ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -93,7 +93,7 @@ jobs:
             }"
 
       - name: LINE notify on success
-        if: steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success' || steps.attempt3.outcome == 'success'
+        if: (steps.attempt1.outcome == 'success' || steps.attempt2.outcome == 'success' || steps.attempt3.outcome == 'success') && hashFiles('.endchan_skip') == ''
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

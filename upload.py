@@ -30,6 +30,7 @@ POST_PASSWORD = os.environ.get("ENDCHAN_PASSWORD", "musclelove123")
 
 UPLOAD_LOG = Path(__file__).parent / "uploaded_endchan.json"
 IMAGE_DIR = Path(__file__).parent / "images"
+SKIP_MARKER = Path(os.environ.get("GITHUB_WORKSPACE", Path(__file__).parent)) / ".endchan_skip"
 
 PATREON_LINK = "https://www.patreon.com/cw/MuscleLove?utm_source=endchan"
 
@@ -145,10 +146,20 @@ def save_upload_log(log: list):
         json.dump(log, f, indent=2, ensure_ascii=False)
 
 
+def mark_skipped(reason: str):
+    """Create a small marker so GitHub Actions can avoid success notifications."""
+    try:
+        SKIP_MARKER.write_text(reason, encoding="utf-8")
+    except Exception as e:
+        print(f"[WARN] Could not write skip marker: {e}")
+
+
 def is_board_not_found_response(status_code: int, body: str) -> bool:
     """Endchanが板なしを500 HTMLで返すケースを安全に判定する。"""
     text = (body or "").lower()
-    return status_code in {404, 500} and any(marker in text for marker in BOARD_NOT_FOUND_MARKERS)
+    return status_code == 404 or (
+        status_code in {400, 500} and any(marker in text for marker in BOARD_NOT_FOUND_MARKERS)
+    )
 
 
 def board_exists(board: str) -> bool:
@@ -356,7 +367,10 @@ def main():
     print(f"  {datetime.now().isoformat()}")
     print("=" * 60)
 
+    SKIP_MARKER.unlink(missing_ok=True)
+
     if not board_exists(ENDCHAN_BOARD):
+        mark_skipped(f"board /{ENDCHAN_BOARD}/ unavailable")
         print("[DONE] No post attempted because the configured board is unavailable.")
         sys.exit(0)
 
@@ -418,6 +432,7 @@ def main():
     elif is_board_not_found_response(result["status_code"], result["response"]):
         print(f"[SKIP] Endchan board /{ENDCHAN_BOARD}/ disappeared or is unavailable. Not retrying as a failure.")
         print("[DONE] No upload log update; choose another board via ENDCHAN_BOARD when ready.")
+        mark_skipped(f"board /{ENDCHAN_BOARD}/ unavailable after post attempt")
         sys.exit(0)
     else:
         log_entry["success"] = False
