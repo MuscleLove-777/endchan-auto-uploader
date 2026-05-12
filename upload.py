@@ -22,7 +22,6 @@ from datetime import datetime
 # Configuration
 # ---------------------------------------------------------------------------
 GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID_ENDCHAN", "")
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 ENDCHAN_BOARD = os.environ.get("ENDCHAN_BOARD", "musclelove")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
@@ -62,6 +61,12 @@ def build_backlink_block():
         return ""
 
 RATE_LIMIT_SECONDS = 65  # wait between posts
+
+BOARD_NOT_FOUND_MARKERS = (
+    "board not found",
+    "board doesn't exist",
+    "invalid board",
+)
 
 # Subjects / descriptions rotated randomly
 SUBJECTS = [
@@ -140,31 +145,31 @@ def save_upload_log(log: list):
         json.dump(log, f, indent=2, ensure_ascii=False)
 
 
-def _list_via_api(folder_id: str) -> list:
-    """Google Drive API v3で画像一覧を取得（サブフォルダ再帰）"""
-    url = "https://www.googleapis.com/drive/v3/files"
-    images = []
+def is_board_not_found_response(status_code: int, body: str) -> bool:
+    """Endchanが板なしを500 HTMLで返すケースを安全に判定する。"""
+    text = (body or "").lower()
+    return status_code in {404, 500} and any(marker in text for marker in BOARD_NOT_FOUND_MARKERS)
 
-    def _list_page(parent_id: str):
-        query = f"'{parent_id}' in parents and trashed = false"
-        params = {
-            "q": query,
-            "key": GOOGLE_API_KEY,
-            "fields": "files(id,name,mimeType)",
-            "pageSize": 1000,
-        }
-        resp = requests.get(url, params=params, timeout=60)
-        resp.raise_for_status()
-        for f in resp.json().get("files", []):
-            mime = (f.get("mimeType") or "").lower()
-            ext = Path(f["name"]).suffix.lower()
-            if "folder" in mime:
-                _list_page(f["id"])
-            elif ext in IMAGE_EXTENSIONS:
-                images.append({"id": f["id"], "name": f["name"]})
 
-    _list_page(folder_id)
-    return images
+def board_exists(board: str) -> bool:
+    """投稿前に板の存在を軽く確認する。通信失敗は投稿処理に任せる。"""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", board or ""):
+        print(f"[SKIP] Invalid Endchan board name: {board!r}")
+        return False
+
+    url = f"https://endchan.net/{board}/"
+    try:
+        resp = requests.get(url, timeout=30)
+    except requests.RequestException as e:
+        print(f"[WARN] Board preflight failed: {e}. Continuing to uploader.")
+        return True
+
+    if is_board_not_found_response(resp.status_code, resp.text):
+        print(f"[SKIP] Endchan board /{board}/ is not available now. Skipping without failure.")
+        return False
+
+    print(f"[*] Board preflight /{board}/: HTTP {resp.status_code}")
+    return True
 
 
 def _list_via_gdown(folder_id: str, dest: Path) -> list:
@@ -185,26 +190,8 @@ def _list_via_gdown(folder_id: str, dest: Path) -> list:
     return [{"id": None, "name": p.name, "local_path": p} for p in sorted(set(files))]
 
 
-def _download_single_api(file_id: str, dest: Path, filename: str) -> Path:
-    """Google Drive APIで1ファイルをダウンロード"""
-    url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
-    resp = requests.get(url, params={"alt": "media", "key": GOOGLE_API_KEY}, timeout=120)
-    resp.raise_for_status()
-    dest.mkdir(parents=True, exist_ok=True)
-    out = dest / filename
-    out.write_bytes(resp.content)
-    return out
-
-
 def list_gdrive_images(folder_id: str, dest: Path) -> list:
-    """Google Drive API（優先）またはgdownで画像一覧を取得"""
-    if GOOGLE_API_KEY:
-        print("[*] Using Google Drive API")
-        try:
-            return _list_via_api(folder_id)
-        except Exception as e:
-            print(f"[!] Google Drive API failed: {e}")
-            print("[*] Falling back to gdown...")
+    """gdownで画像一覧を取得"""
     return _list_via_gdown(folder_id, dest)
 
 
@@ -222,14 +209,12 @@ def pick_random_image(images: list, uploaded: list) -> dict | None:
 
 
 def ensure_local_path(item: dict, dest: Path) -> Path:
-    """Return local file path, downloading via API if needed."""
+    """Return local file path from the gdown-downloaded image list."""
     if item.get("local_path"):
         p = Path(item["local_path"])
         if p.exists():
             return p
-    if item.get("id") and GOOGLE_API_KEY:
-        return _download_single_api(item["id"], dest, item["name"])
-    raise ValueError("No way to get file: missing local_path and (id+API key)")
+    raise ValueError("No local image path available. Check gdown folder download.")
 
 
 def build_message() -> tuple[str, str]:
@@ -371,6 +356,10 @@ def main():
     print(f"  {datetime.now().isoformat()}")
     print("=" * 60)
 
+    if not board_exists(ENDCHAN_BOARD):
+        print("[DONE] No post attempted because the configured board is unavailable.")
+        sys.exit(0)
+
     # 1. Get images from Google Drive
     if GDRIVE_FOLDER_ID:
         images = list_gdrive_images(GDRIVE_FOLDER_ID, IMAGE_DIR)
@@ -419,7 +408,6 @@ def main():
     }
 
     # Check for success
-    resp_text = result["response"].lower()
     if result["status_code"] == 200:
         log_entry["success"] = True
         print("[+] Thread created successfully!")
@@ -427,6 +415,10 @@ def main():
         save_upload_log(uploaded_log)
         print(f"[+] Log saved to {UPLOAD_LOG}")
         print("\n[DONE]")
+    elif is_board_not_found_response(result["status_code"], result["response"]):
+        print(f"[SKIP] Endchan board /{ENDCHAN_BOARD}/ disappeared or is unavailable. Not retrying as a failure.")
+        print("[DONE] No upload log update; choose another board via ENDCHAN_BOARD when ready.")
+        sys.exit(0)
     else:
         log_entry["success"] = False
         print(f"[-] Post failed. Status: {result['status_code']}")
