@@ -4,6 +4,8 @@ Endchan Auto-Uploader for MuscleLove AI Art
 Posts muscle girl AI art to Endchan imageboards via Lynxchan API.
 No account needed - anonymous posting with image + text.
 """
+from publication_evidence import record_publication_result, identity_from_url
+from promotion_policy import CANONICAL_URL, canonical_cta, strip_plain_promotion, normalize_plain_promotion, normalize_html_promotion
 
 import os
 import sys
@@ -241,7 +243,7 @@ More exclusive content: {PATREON_LINK}"""
 
     message = message + build_backlink_block()
 
-    return subject, message
+    return subject, normalize_plain_promotion(message)
 
 
 def clean_filename(filepath: Path) -> Path:
@@ -417,6 +419,8 @@ def main():
         "subject": subject,
         "post_url": ENDCHAN_POST_URL,
         "status_code": result["status_code"],
+        "publication_receipt": record_publication_result("endchan", {"title": subject, "caption": message},
+                                                          confirmed=result["status_code"] in (200, 201)),
         "response": result["response"][:300],
         "posted_at": datetime.now().isoformat(),
     }
